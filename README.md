@@ -8,7 +8,7 @@
 First, turn on ROS2
 - cd your_ros_ws
 - source install/setup.bash
-- cd src/GPS_navigation/GPS_navigation : where python files are.
+- cd src/GPS_navigation/GPS_navigation (where python files are.)
 
 Run the files with this order
 [openrouteservice.py -> zed_f9p.py -> purepursuit.py]
