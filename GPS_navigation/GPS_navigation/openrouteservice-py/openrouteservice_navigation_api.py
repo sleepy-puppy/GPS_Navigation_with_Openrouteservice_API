@@ -8,11 +8,17 @@ from flask import Flask, render_template, request, jsonify
 import webbrowser
 import threading
 import os
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float32MultiArray
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
-# OpenRouteService API Key
 ORS_API_KEY = '5b3ce3597851110001cf6248c095f2a04f244c2bb56e451d005b8712'
+
+current_gps_coords = None
 
 @app.route('/')
 def index():
@@ -50,9 +56,34 @@ def save_waypoints():
     
     return jsonify({'status': 'success'})
 
+def ros2_listener():
+    rclpy.init()
+
+    class GPSListener(Node):
+        def __init__(self):
+            super().__init__('gps_listener')
+            self.subscription = self.create_subscription(Float32MultiArray, 'from_zedf9p_gps', self.listener_callback, 10)
+            self.subscription  # prevent unused variable warning
+
+        def listener_callback(self, msg):
+            global current_gps_coords
+
+            gps_data = msg.data
+            current_gps_coords = (gps_data[0], gps_data[1])
+            print(current_gps_coords)
+
+            # Flask-SocketIO를 통해 클라이언트에 실시간으로 전송
+            socketio.emit('gps_update', {'lat': current_gps_coords[0], 'lng': current_gps_coords[1]})
+
+    gps_listener = GPSListener()
+    rclpy.spin(gps_listener)
+    gps_listener.destroy_node()
+    rclpy.shutdown()
+
 def open_browser():
     webbrowser.open_new('http://127.0.0.1:5000/')
 
 if __name__ == '__main__':
+    threading.Thread(target=ros2_listener, daemon=True).start()
     threading.Timer(1, open_browser).start()
-    app.run(use_reloader=False, debug=True)
+    socketio.run(app, use_reloader=False, debug=True)
