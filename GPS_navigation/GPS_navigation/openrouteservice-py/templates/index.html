@@ -34,16 +34,36 @@
         <ul id="waypoints-list"></ul>
     </div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
     <script>
-        let map = L.map('map').setView([36.7634, 127.2817], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-        }).addTo(map);
-
-        let startMarker, endMarker, tempMarker;
+        let map, gpsMarker, startMarker, endMarker, tempMarker;
         let startCoords, endCoords;
         let tempCoords;
+        let gpsDataReceived = false;
+        let userMovedMap = false;  // 사용자가 지도를 움직였는지 여부
 
+        // 기본 위치 설정
+        let defaultLocation = [36.7634, 127.2817]; // 초기 중심 위치 (GPS가 없을 경우)
+        
+        // 맵 초기화
+        function initializeMap(center) {
+            map = L.map('map').setView(center, 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+            }).addTo(map);
+
+            map.on('click', onMapClick);
+
+            // 사용자가 지도를 움직이거나 줌을 변경한 경우 플래그를 설정
+            map.on('moveend', function() {
+                userMovedMap = true;
+            });
+            map.on('zoomend', function() {
+                userMovedMap = true;
+            });
+        }
+
+        // 지도 클릭 시 임시 마커 생성
         function onMapClick(e) {
             if (tempMarker) {
                 map.removeLayer(tempMarker);
@@ -59,14 +79,19 @@
             })}).addTo(map);
         }
 
-        map.on('click', onMapClick);
-
         function setStart() {
             if (tempCoords) {
                 if (startMarker) {
                     map.removeLayer(startMarker);
                 }
-                startMarker = L.marker([tempCoords[0], tempCoords[1]]).addTo(map);
+                startMarker = L.marker([tempCoords[0], tempCoords[1]], {icon: L.icon({
+                    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })}).addTo(map);
                 startCoords = [tempCoords[1], tempCoords[0]];
                 document.getElementById('start').value = `${tempCoords[0]}, ${tempCoords[1]}`;
                 map.removeLayer(tempMarker);
@@ -79,7 +104,14 @@
                 if (endMarker) {
                     map.removeLayer(endMarker);
                 }
-                endMarker = L.marker([tempCoords[0], tempCoords[1]]).addTo(map);
+                endMarker = L.marker([tempCoords[0], tempCoords[1]], {icon: L.icon({
+                    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })}).addTo(map);
                 endCoords = [tempCoords[1], tempCoords[0]];
                 document.getElementById('end').value = `${tempCoords[0]}, ${tempCoords[1]}`;
                 map.removeLayer(tempMarker);
@@ -106,6 +138,7 @@
                     if (window.routeLayer) {
                         map.removeLayer(window.routeLayer);
                     }
+                    // 경로가 성공적으로 생성되면 지도에 경로 추가
                     window.routeLayer = L.geoJSON(data.route).addTo(map);
                     map.fitBounds(window.routeLayer.getBounds());
 
@@ -133,10 +166,40 @@
                     })
                     .catch(error => console.error('Error:', error));
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to generate the route. Please check the coordinates and try again.');
+                });
             } else {
                 alert('Please select start and end points on the map.');
             }
+        }
+
+        // GPS 데이터를 실시간으로 받아 마커를 갱신하는 코드
+        let socket = io.connect('http://' + document.domain + ':' + location.port);
+        socket.on('gps_update', function(data) {
+            gpsDataReceived = true;
+            if (gpsMarker) {
+                map.removeLayer(gpsMarker);
+            }
+            gpsMarker = L.circleMarker([data.lat, data.lng], {
+                radius: 8,          // 동그라미의 반지름 크기
+                fillColor: "#ff0000",  // 빨간색
+                color: "#ff0000",      // 테두리 색상도 빨간색
+                weight: 2,             // 테두리 두께
+                opacity: 1,
+                fillOpacity: 0.8       // 채우기 불투명도
+            }).addTo(map);
+
+            // 사용자가 지도를 움직이지 않았다면, GPS 위치로 지도를 중심 설정
+            if (!userMovedMap) {
+                map.setView([data.lat, data.lng], map.getZoom());
+            }
+        });
+
+        // 페이지 로드 시 지도 초기화
+        window.onload = function() {
+            initializeMap(defaultLocation);
         }
     </script>
 </body>
