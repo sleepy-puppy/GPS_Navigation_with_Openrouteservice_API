@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float64MultiArray
 from geometry_msgs.msg import Twist, Vector3
 import math
 import time
@@ -14,7 +14,7 @@ class PurePursuit(Node):
 
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        self.subscription_current_direction = self.create_subscription(Float32MultiArray, 'azimuth', self.callback_azimuth, 10)
+        self.subscription_current_direction = self.create_subscription(Float64MultiArray, 'azimuth', self.callback_azimuth, 10)
 
         self.current_azimuth = None
         self.target_azimuth = None
@@ -60,7 +60,9 @@ class PurePursuit(Node):
                     self.get_logger().info(f'alpha: {alpha}, 직진')
                 else:
                     # 선형적으로 오메가 값을 계산
-                    self.robot_w = (1.5 / 90.0) * (math.copysign(1, alpha))   #copysing(a,b)는 a에 b의 부호 붙여서 반환
+                    max_alpha = 90.0  # 최대 각도 차이
+                    self.robot_w = (1.5 * (abs(alpha) / max_alpha)) * (math.copysign(1, alpha))
+
             self.get_logger().info(f'alpha: {alpha}, robot_v: {self.robot_v}, robot_w: {self.robot_w}')
 
         self.publish_cmd_vel()
