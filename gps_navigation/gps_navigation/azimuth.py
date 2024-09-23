@@ -3,7 +3,7 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float64MultiArray
 import math
 import os
 
@@ -12,8 +12,8 @@ class DirectionPublisher(Node):
         super().__init__('direction_node')
         
         # Publisher with Float32MultiArray
-        self.publisher = self.create_publisher(Float32MultiArray, 'azimuth', 10)
-        self.subscription = self.create_subscription(Float32MultiArray, 'from_zedf9p_gps', self.callback, 10)
+        self.publisher = self.create_publisher(Float64MultiArray, 'azimuth', 10)
+        self.subscription = self.create_subscription(Float64MultiArray, 'from_zedf9p_gps', self.callback, 10)
         
         self.coordinates = [None, None]  # List to store coordinates
         self.waypoints = self.load_waypoints()
@@ -37,6 +37,7 @@ class DirectionPublisher(Node):
 
     def callback(self, msg):
         # Update the coordinates
+        print(msg.data[0], msg.data[1])
         self.coordinates[0] = self.coordinates[1]
         self.coordinates[1] = (msg.data[0], msg.data[1])
 
@@ -48,7 +49,7 @@ class DirectionPublisher(Node):
             self.update_target(self.current_lat, self.current_lon)
             
             # Create and publish Float32MultiArray message
-            msg = Float32MultiArray()
+            msg = Float64MultiArray()
             msg.data = [current_bearing, self.calculate_target_bearing()]
             self.publisher.publish(msg)
             print(f"current azimuth : {current_bearing}, target azimuth : {self.calculate_target_bearing()}")
