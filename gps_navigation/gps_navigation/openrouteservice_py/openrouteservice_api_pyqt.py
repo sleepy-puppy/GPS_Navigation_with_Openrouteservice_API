@@ -11,7 +11,7 @@ from flask_socketio import SocketIO, emit
 import os
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float64MultiArray
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -62,7 +62,7 @@ def ros2_listener():
     class GPSListener(Node):
         def __init__(self):
             super().__init__('gps_listener')
-            self.subscription = self.create_subscription(Float32MultiArray, 'from_zedf9p_gps', self.listener_callback, 10)
+            self.subscription = self.create_subscription(Float64MultiArray, 'from_zedf9p_gps', self.listener_callback, 10)
             self.subscription  # prevent unused variable warning
 
         def listener_callback(self, msg):
